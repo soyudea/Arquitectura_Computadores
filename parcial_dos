@@ -1,0 +1,398 @@
+#Como operar con numeros reales en la cpu ????????????????????????????
+
+#_______________________________________________________________________________________________________________________
+.data            .align 2
+vect:            .word   5,3,0,-1,-7,0,-33,4
+vect_result:     .word   0,0,0,0,0,0,0,0
+
+                 .align 2 
+matriz_num:      .word   1,2,3,4,
+                         5,6,7,8,
+                         9,10,11,12,
+                         13,14,15,16  
+#______________________________________     
+                  .align 2                                                      
+A:                .word  1,2,3,4,
+                         5,6,7,8,
+                         9,10,11,12,
+                         13,14,15,16   
+#______________________________________
+                  .align 2
+B:                .word  1,2,3,4,
+                         5,6,7,8,
+                         9,10,11,12,
+                         13,14,15,16 
+#______________________________________ 
+                  .align 2
+C:                .word 0,0,0,0,
+                        0,0,0,0,
+                        0,0,0,0,
+                        0,0,0,0                         
+#______________________________________   
+                   .align 2
+X:                 .word  1                    
+
+#________________________________________                                               
+                                                        
+                  .align 2        
+matriz_char:      .asciiz "holamundobonitwy"
+                  .align 2
+No_Esta_Area:     .asciiz        "la coordenada (X0,Y0) no se ubica dentro del área"   
+                  .align 2                
+Esta_Area:        .asciiz          "La coordenada  (X0, Y0) está dentro del área"
+
+                  .align 2
+file_in:          .asciiz           "SOPA_DE_LETRAS.TXT"
+                  .align 2
+input_buffer:     .space  5052      #Se reserva memoria para cargar un archivo de entrada en la memoria
+                  .align 2
+sopa:             .space 2506       #Se guarda caracters sin espacios y sin caracteres de control  
+                  .align 2
+lista_integer:    .word             270,-75,1,4,5,2,3,3,1000,10,270, -90,2570       
+                  .align 2                         
+longitud:         .word  13        #Longitud del vector lista_integer
+                               
+.text             .global main
+
+main:        
+              li $a1, 8  
+              la $a0, vect
+              la $a3, vect_result
+              #jal quita_repetidos
+              #jal operar_enteros
+              #jal operar_caracteres
+              #jal procesar_archivo
+              #jal Suma_A_B
+              # jal  Dentro_Area
+              #jal dividir_int
+              #jal Execution_Evalua_List
+              jal media_palabra_menos_sig
+           
+Sale:        j Exit
+#___________________________________________________________________________________________________________________
+#Ejercicio 5  pone el mas grande de la lista en $t0, el mas pequeño en $t1, el mayor valor absoluto en $t2
+media_palabra_menos_sig: 
+
+                addi $sp, $sp, -12
+                sw   $ra, 0($sp)
+                sw   $s1, 4($sp)
+                sw   $s2, 8($sp)
+                li   $t1, 0                    #Contador de elementos de la lista 
+                li   $t3, 0                    #Almacena indice del elemento que cumple condición
+                li   $t4,0x0a0a
+               
+                la   $s1, lista_integer        #Se direcciona apuntador a la lista
+                la   $s2,longitud              #Apuntador al tamaño de la lista
+                lw   $t5, ($s2)                #Se toma la longitud del arreglo
+search_indice:  beq  $t1, $t5, End_media_word  # Se evalua si se leyeron todos los elementos de la lista 
+                lhu  $t2, ($s1)                # Se carga en $t1, un elemento de la lista
+                addi $t1, $t1, 1
+                beq  $t2, $t4, update_indice   #Se evalua condicion
+go_inc_dir:     addi $s1, $s1, 4
+                j search_indice
+update_indice:  addi $t3, $t1, 0               #Se almacena el indice   
+                j go_inc_dir                   #Retorna a seguir el flujo del algoritmo
+                      
+ End_media_word:    
+                lw   $ra, 0($sp)
+                sw   $s1, 4($sp)
+                sw   $s2, 8($sp)
+                addi $sp, $sp, 12 
+                jr $ra         
+                
+#____________________________________________________________________________________________________________________
+#Ejercicio 5  pone el mas grande de la lista en $t0, el mas pequeño en $t1, el mayor valor absoluto en $t2
+Execution_Evalua_List: 
+                addi $sp, $sp, -12
+                sw   $ra, 0($sp)
+                sw   $s1, 4($sp)
+                sw   $s2, 8($sp)
+                
+                la   $s1, lista_integer        #Se direcciona apuntador a la lista
+                la   $t7,longitud              #Apuntador al tamaño de la lista
+                li   $t3, 0                    # Auxiliar para el mayor
+                li   $t6, 0                    #Contador de numeros
+                lw   $s2, ($t7)                #Se carga $s2 con tamaño de la lista
+                lw   $t0, ($s1)                # Mayor inicia en cero
+                lw   $t1, ($s1)                #inicializa menor
+                lw   $a0, ($s1) 
+                
+                 li   $a1, -1              
+                 bgtz $a0, busque_int           
+                 mul  $a0,$a0, $a1              #Obtener el valor absoluto, primer valor
+                            
+busque_int:      beq  $t6, $s2, Final_list      # Si terminó de leer la lista, salta
+                 lw   $t7, ($s1)                #Se lee de la lista primer valor
+                 addi $a0, $t7, 0
+                 bgtz $a0, siga_int1             #Se evalua para calcular mayor valor absoluto 
+                 mul  $a0, $a0, $a1
+siga_int1:       bgt  $t2, $a0, siga_int
+                 addi $t2, $a0, 0               # $t2 será el mayor valor absoluto de la lista 
+siga_int:        bgt  $t0, $t7, no_mayor        # $t0 es el mayor y salata
+                 addi $t0, $t7, 0               #Se actualiza el mayor, $t0 es entero mas grande de la lista
+                                 
+no_mayor:        blt  $t1, $t7, no_menor
+                 addi $t1, $t7, 0               #Se actualiza el menor, $t1 tendrá el menor valor de la lista
+no_menor:        addi $s1, $s1, 4               #Siguiente elemento de la lista
+                 addi $t6, $t6, 1
+                 j busque_int
+                
+Final_list:    
+               lw $ra, 0($sp)
+               lw $s1, 4($sp)
+               lw $s2, 8($sp)     
+               addi $sp, $sp, 12  
+               jr $ra         
+                
+#_____________________________________________________________________________________________________________________
+#Ejercicio # 6  del taller realiza diviciones mediante restas $v0 = cociente, $v1 = modulo, evita división por cero
+dividir_int:      
+             li   $t0, 0               #Contador de restas
+Reste:       beqz $a1, Error           #$a1 =0 produce división por cero
+             sub  $t1, $a0,$a1         # $t1  = resta
+             addi $t0, $t0, 1          #Se incrementa el contador de veces de restas, su valor final sera el resultado X/y
+             add  $a0, $t1,$zero 
+             ble  $a0, $a1, Termino    # Si $t1 es menor  que $a1 no se puede seguir restando
+             j Reste
+Termino:     addi $v1, $t1, 0           #Tiene el modulo de la división
+             addi $v0, $t0,0            #v0 contiene el resultado de X/y
+             
+Error:       li $v0, -1                 #El divisor no puede ser cero  
+             jr $ra 
+         
+             
+             
+            
+#________________________________________________________________________________________________________________________________________________________________________________________________________________
+Dentro_Area:  # Ejercicio 6 del taller
+           addi $sp, $sp, -12     #Se preservan registros
+           sw   $ra, 0($sp)
+           sw   $s1, 4($sp)
+           sw   $s2, 8($sp) 
+           
+           li   $s1, 8000                              #  para calcular $s1 = 8000-X
+           li   $s2, -30000                            #  Para calcular $s2 = -30000 + X
+           li   $t3, 10000                             #  para  $t3 = 10000 + 0  
+                         
+           sub  $t0, $s1,$a0                            #  calculo Y1 = 8000-X, $a0 corresponde alvalor de X
+           add  $t1, $s2,$a0                            #  Calculo de  Y2 = -30000 + X    $a0 corresponde al valor de X
+           bgt  $t0, $a1, No_Esta                       # Y esta arriba o abaju Yo ==$a1 corresponde al valor de Y
+           bgt  $t1, $a1, No_Esta                       #Y esta arriba o abaju Yo ==$a1 corresponde al valor de Y
+           blt  $t3, $a1, No_Esta                       #Y esta arriba o abaju Yo ==$a1 corresponde al valor de Y
+           li   $v0, 0
+           j    Fin
+           
+No_Esta:  la $t4, No_Esta_Area
+          li $v0 , -1 
+          
+Fin:     lw   $ra, 0($sp)    #Se recuperan archivos
+         lw   $s1, 4($sp)
+         lw   $s2, 8($sp)  
+         addi $sp, $sp, -12   
+         jr $ra        
+           
+ #_______________________________________________________________________________________________________________________
+#Función para sumar dos matrices
+Suma_A_B:
+              la   $s0, A                      #Inicio matriz A
+              la   $s1, B                      #Inicio matriz B
+              la   $s2, C                      #Puntero a la matriz resultado
+              addi $a0, $zero, 4               #Numero de filas
+              addi $a1, $zero, 4               #numero de columnas
+              li   $t0, 0                      #contador de filas 
+              li   $t1, 0                      #Se inicializa contador de columnas
+Int_Suma_For: beq  $t0, $a0,  go_out_suma      #  Si se cumple la igualda ya se exploró todas la matriz                      
+              beq  $t1, $a1,  sgt_fila_suma    #Se leyeron todos los elementos columnas en la fila i_esima
+              lw   $t2, ($s0)                  # lee elemento de vector A
+              lw   $t3, ($s1)                  #Se lee elemento del Vector B
+             #_______________________________________________________________________________________
+              add  $t4, $t2,$t3                 #Sumamos elementos  A y B  (Sumar, Restar, multiplicar) y otras
+            
+               #_______________________________________________________________________________________ 
+              sw   $t4, ($s2)                   #Se guarda resultado
+              addi $s0, $s0,4                   #Avanzamos al elemento siguiente columna e Matriz A
+              addi $s1, $s1,4                   #Avanzamos al elemento siguiente columna e Matriz B
+              addi $s2, $s2,4                   #Avanzamos al elemento siguiente columna e Matriz B
+              addi $t1, $t1,1                   #incrementamos contador de columnas
+              j Int_Suma_For  
+             #_________________________________________________________________________                      
+            
+sgt_fila_suma: addi   $t0, $t0,1                     #Incrementamos  el contador filas
+               li $t1,0
+               j Int_Suma_For
+go_out_suma:   jr $ra        
+#_______________________________________________________________________________________________________________________
+
+#Programa para operar una matriz de enteros nxm  
+procesar_archivo:
+                li $v0, 13                      #Servicio para leer un archivo
+                la $a0, file_in
+                li $a1, 0                       #Flag lectura de archivo
+                li $a1, 0                       #Mode se ignora
+                syscall 
+                move $s0, $v0                   #Copiamos el descriptor Que esta en $v0 a $s0 [Copiamos en $s0 el descriptor del archivo]
+                
+                li   $v0 , 14                   #Servicio para cargar a
+                move $a0, $s0                   #Volcado del archivo a la memoria [Descriptor del archivo que se va a leer]
+                #la   $a1, input_buffer          #Direccion del buffer de entra
+                la   $a1, file_in
+                li   $a2, 5052                  #Tamaño del archivo a leer
+                syscall 
+                move $t1, $v0                   # direccionamos $t1 al buffer de entrada
+                jal clean_array                 # Se crea el array sopa limpio 
+                
+                j close_file
+retorno:        jal Exit  
+
+clean_array:   #la  $s2, input_buffer            #Debe quedar el buffer limpio sin espacios y sin caracteres de control
+               la  $s2, file_in
+               la  $s3, sopa                    #Se direcciona hacia el archivo sopa
+clean_loop:    lbu $s4, ($s2)
+               beq $s4, $zero, End_clean        #Se encontro un terminador \n
+               beq $s4, 0x20, update_punt       #Se encontró espacio
+               beq $s4, 0x0d, update_punt       # Se encontro un cr
+               beq $s4, 0x0a, update_punt       #Se encontró nueva linea
+                #__________________________________________________________
+               #En este espacio imprimamos el caracter
+               sb  $s4, ($s3)                  #Se guarda caracter valido
+              
+               
+               #__________________________________________________________
+               addi $s3, $s3, 1
+update_punt:   addi $s2, $s2, 1             
+               j clean_loop
+End_clean:     jr $ra    
+
+            #Fin del programa para limpiar arreglo           
+
+#_______________________________________________________________________________________________________________________
+operar_enteros:   #Podemos usar el archivo para operaciones aritmeticas y obtener maximos, minimos, menores mayores etc
+              la   $s0, A                      #Inicio matriz A
+              addi $a0, $zero, 4               #Numero de filas
+              addi $a1, $zero, 4               #numero de columnas
+              li   $t0, 0                      #contador de filas 
+              li   $t1, 0                      #Se inicializa contador de columnas
+OP_Suma_For:  beq  $t0, $a0,  go_out_OP       #  Si se cumple la igualda ya se exploró todas la matriz                      
+              beq  $t1, $a1,  sgt_fila_OP      #Se leyeron todos los elementos columnas en la fila i_esima
+              lw   $t2, ($s0)                  # lee elemento de vector A
+             #_______________________________________________________________________________________
+             
+             #Elevar al cuadrado
+             mul  $t4, $t2,$t2                 #Sumamos elementos  A y B  (Sumar, Restar, multiplicar)
+             
+             #_______________________________________________________________________________________ 
+             sw   $t4, ($s0)                   #Se guarda resultado
+             addi $s0, $s0,4                   #Avanzamos al elemento siguiente columna e Matriz A
+             addi $t1, $t1,1                   #incrementamos contador de columnas
+             j OP_Suma_For  
+          #_________________________________________________________________________                      
+            
+sgt_fila_OP:   li   $t1, 0                     #Inicializamos  el contador de columnas j =0
+               addi $t0, $t0,1                 #Incrementemos contador de filas  
+               j OP_Suma_For
+               
+go_out_OP:   jr $ra   
+             
+#________________________________________________________________________________________________________________________
+#Leer matriz de caracteres
+#Programa para operar una matriz de enteros nxm  
+operar_caracteres:
+              addi $sp, $sp, -4
+              sw   $ra, 0($sp)
+              la   $t0, matriz_char         #puntero  las filas, mapea la fila i
+              addi $a2, $zero, 4            #Numero de columnas
+              addi $a3, $zero, 4            #numero de filas
+              li   $t2, 0                   #contador de columnas 
+              li   $t3, 0                   #Se inicializa contador de filas
+            
+Ext_For1:     addi $t1,$t0,0                #puntero a las columnas mapea la columna j 
+              beq  $t3, $a2,  go_out1       #  Si se cumple la igualda ya se exploró todas las filas                       
+Int_For1:     beq  $t2, $a2,  sgt_fila1     #Se leyeron todos los elementos de la fila i, recorrido por columnas 
+              lb   $v1, ($t1)               # lee elemento de vector
+              addi $t1, $t1, 1              #Actualizamos el apuntador de columnas
+          #_______________________________Tarea____________________________________ 
+           #Nota: Aqui mostramos lo que leemos, se puede anulat el codigo para hacer otra cosa como encontrar el mayor
+           #Sumar los numeros , elevar al cuadrado cada elemento y regresarlo a la matriz   
+              li   $v0, 11
+              addi $a0, $v1,0
+              syscall
+          #_________________________________________________________________________                      
+              addi $t2, $t2,1          #Actualizamos el con tador de columnas j = j +1
+              j Int_For1
+sgt_fila1:    addi $t0, $t0, 4
+              addi $t3, $t3,1
+              li   $t2, 0              #Inicializamos  el contador de columnas j =0
+         
+              j Ext_For1
+go_out1:      lw $ra, 0($sp) 
+              addi $sp, $sp, 4    
+              jr $ra
+#________________________________________________________________________________________________________________________
+quita_repetidos: addi $sp, $sp, -4
+                 sw $ra, ($sp)
+                  
+                 jal burbuja        #Se llama el procedimiento burbuja para que retorne el vector de manera ordenada
+                 li   $t0, 1
+                 li   $v0, -1
+                 lw   $t1, ($a0)               #Obtener elemento de la lista
+                 sw   $t1, ($a3) 
+                 addi $a3, $a3, 4       
+                      
+repite:          bgt  $t0, $a1, end_repetidos  #verifica si leyó todos los elementos
+                 addi $t0, $t0, 1 
+                 addi $t2, $t1, 0
+                 lw   $t1, ($a0)
+                 beq  $t1, $t2, no_save
+                 sw   $t1, ($a3)
+                 addi $a3, $a3, 4
+no_save:         addi $a0, $a0, 4
+                 addi $v0, $v0, 1
+                 j repite
+                 
+                 
+end_repetidos:   lw $ra, ($sp)
+                 addi $sp, $sp, 4
+                 jr $ra
+#________________________________________________________________________________________________________________________
+# La función de burbuja recibe los parametroas $a0, $a1 donde esta la direccion del vector desordenado y su longitud
+burbuja:      addi $sp, $sp, -4 
+              sw   $ra, 0($sp)
+              li   $t1, 1                  #indice i contador for externo
+              li   $t2, 1                  #indice j contador for interno
+              addi $t5, $a0, 0
+              addi $t6, $a1, 0             #Se toma la longitud del vector
+              lw   $t3, ($t5)              #$t3 var auxiliar elemento menor
+           
+for_ext:      bgt  $t1, $t6, fin_for_ext 
+              addi $t0, $t5, 0             # Se apunta al inicio del vector para ciclo interno
+              addi $t2, $t1, 0
+for_int:      bgt  $t2, $t6, fin_for_int   #Se terminó de leer vector
+              lw   $t3, ($t5)              #$t3 var auxiliar elemento menor
+              lw   $t4, ($t0)              # se lee elemento del vector en la posición j
+              blt  $t3, $t4, no_es_menor   # si $t3  es mayor se salta sin cambios
+              sw   $t4, ($t5)              # Se realiza el intercambio
+              sw   $t3, ($t0)
+              
+no_es_menor:  addi $t0, $t0, 4
+              addi $t2, $t2, 1
+              j    for_int
+              
+fin_for_int:  addi $t5, $t5, 4
+              addi $t1, $t1, 1
+              j for_ext              
+              
+                  
+fin_for_ext:                  
+Fin_burbuja:  lw $ra, 0($sp)
+              addi $sp, $sp, 4 
+              jr $ra                 
+#_________________________________________________________________________________________________________________
+close_file:    move $a0, $s0
+               li $v0, 16
+               syscall
+               j retorno
+        
+Exit:         li $v0, 10
+              syscall              
+                  
+     

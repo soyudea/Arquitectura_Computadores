@@ -1,0 +1,504 @@
+#______________________________________________________________________________________________________________________
+#  Trabajo presentado por: Omar alberto Torres
+#                                               
+
+#______________________________________________________________________________________________________________________
+.data
+                       .align   1
+caracter_output:       .byte    1
+                        
+                       .align   2
+Saludo:                .asciiz                    "Bienvenido al programa sopa de letras \n" 
+                       .align 2
+msg_busco_word:        .asciiz                    "Digite una palbara hasta 20 carácteres alfabéticos "
+                       .align   2 
+Terminar:              .asciiz                    "\n Deseas terminar pulse: 'S', otra tecla para continuar \n" 
+                       .align   2
+Finish:                .asciiz                     "\n Final del programa " 
+                       .align   2 
+Resultado_fila_der:    .asciiz                     " \n Palabra en dirección horizontal_hacia_Derecha, fué encontrada en la fila:  " 
+                       .align   2 
+Resultado_fila_izq:    .asciiz                     " \n Palabra en dirección horizontal_acia _izquierda, fué encontrada en la fila:  "  
+                       .align   2 
+Resultado_columna:     .asciiz                      " y la Columna: "          
+       
+                       .align   2    
+Resultado_vert_down:   .asciiz                      "\n Palabra en dirección Vertical hacia abajo: fue encontrada en la fila: "
+                       .align   2    
+Resultado_vert_up:     .asciiz                     "\n Palabra en dirección Vertical hacia arriba: fue encontrada en la fila: "
+          
+                      .align   2                            
+palabra_buscar:       .space   25                   #Espacio para guardar la palabra a buscar
+                      .align   2  
+palabra_reverse:      .space   25
+                      .align   2    
+palabra_buffer:       .space   25
+                      .align   2                         
+palabra_aux:          .space   25                             
+                      .align   2
+long_cad:             .word    0                    #Espacio para guardar la longitud de la cadena
+                      .align   1    
+dir_fil:              .word    0                    #Direccion de fila 
+                      .align   1
+dir_col:              .word    0                    #Direccion columna 
+                      .align   1    
+flag:                 .word    0
+                      .align   2
+cambio_fila:          .asciiz    " \n "                    
+                      .align   2    
+archivo_entrada:      .asciiz                    "SOPA_DE_LETRAS.txt"     
+                      .align   2 
+backup_descriptor:    .word 0                       
+                
+.text                .global main
+#---------------------------------------------------------------------------------------------#   
+#El ciclo main permanentemente indaga si el usuario quiere buscar una palabra o salir           
+main:   
+        # Apertura de archivo para la lectura
+              li      $v0, 13	          # Servicio de apertura de archivo
+              la      $a0, archivo_entrada	          # Contiene la direccion de memoria donde se aloja el archivo
+              li      $a1, 0	          # $a1 = 0 la bandera de estado indica que el archivo se habre en modo lectura
+              li      $a2, 0	          # Se ignora el modo
+              syscall		          # Open a file (file descriptor returned in $v0)
+              move   $s0, $v0	          # Copy file descriptor, $s0 queda apuntando al inicio del archivo
+              la     $s1, backup_descriptor 
+              sw     $s0, ($s1)                         #Preservamos el descriptor al archivo  
+              addi   $sp, $sp, -8                         #Se preservan parametros para recuperarlos y hacer cierre
+              sw     $a1, 0($sp)
+              sw     $a2, 4($sp)
+              
+         # Read from previously opened file             Se vuelca a la memoria el contenido del archivo
+              li     $v0, 14	          # System call for reading from file
+              move   $a0, $s0	          # File descriptor	
+              la     $a1, archivo_entrada	          # Address of input buffer
+              li     $a2, 5056	          # Maximum number of characters to read archivo
+              syscall		          # Read from file
+              
+              #Mostramos mensaje de vienvenida
+              la $a0, Saludo
+              li $v0, 4 
+              syscall 
+              jal printSopa           #Muestra la sopa de letras 
+         
+                    #Bucle del main  
+loop_main:                           
+              
+               jal clearWord              #Se limpia variable, para poder leer nueva palabra de búsqueda
+               li $v0, 54
+               li $a2, 2                  #Se admite un caracter de entrada "S" = terminar, cualquier otro sigue
+               la $a1, caracter_output    
+               la $a0, Terminar
+               syscall
+              
+               la $t1, caracter_output      #Se direcciona el buffer para controlar ciclo while wn main
+               lb $t1,($t1)                 #Se obtiene el valor del buffer 
+                             
+               addi $v0, $t1, 0                              
+               addi $s0,$zero,83         #Equivalente al caracter 'S'
+               beq  $v0,$s0,Fin          # Si el caracter leido es "S" se termina la aplicación
+               
+               jal pedirPalabra  
+               jal converReverse         #Se llama funcion para invertir palabra
+               
+               la $a0, palabra_buscar    #Se carga direccion para pasar como parametro      
+               li $t1, 0
+               la $t2, flag              #seleccion de mensajes
+               sw $t1,($t2)        
+               jal searchWord
+                         
+               la $a0, palabra_reverse
+               li $t1, 1
+               la $t2, flag                              #seleccion de mensajes
+               sw $t1,($t2)    
+               jal searchWord
+               
+               la $a0, palabra_buscar   #Se carga direccion para pasar como parametro  
+               li $t1, 0
+               la $t2, flag                              #seleccion de mensajes
+               sw $t1,($t2)  
+               jal searchWordV
+               
+               la $a0, palabra_reverse
+               li $t1, 1
+               la $t2, flag                              #seleccion de mensajes
+               sw $t1,($t2)
+               jal searchWordV
+                                          
+siga_main:     j loop_main
+               j Fin
+#--------------------------------------------------------------------------------------------------------------------------#                 
+converReverse:
+               addi $sp, $sp, -12
+               sw $ra, 0($sp)
+               sw $s0, 4($sp)            #$s0 apuntando al final de la palabra se preserva para que no se altere el flujo normal
+               sw $s1, 8($sp)
+                             
+               la $s0, palabra_buscar
+               la $s1, palabra_reverse
+               la $s3, long_cad   #Se carga dirección donde está longitud de la palabra buscar
+               li $t1, 65         #Cargamos $t1 con el entero 65 correspondiente al caracter A
+               li $t2, 90         #Cargamos $t1 con el entero 65 correspondiente al caracter Z
+               li $t0, 0          #su valor controla el acceso a caracter 
+               li $t3, -1
+               
+               lw   $t0, ($s3)       #recuperamos el valor numerico de la longitud de la palabra buscar 
+           
+              
+               add  $s0, $s0, $t0     #ubicamos apuntador $s0 al final de la palabra
+               addi $s0,$s0,-1
+siga:       
+               lbu  $a0,($s0)         #obtenemos el byte correspondiente a un caracter
+               sb   $a0, ($s1)        #Se guarda caracter en la palabra reverse
+               addi $s0, $s0, -1      #Retrocedemos el apuntador que lee en reversa
+               addi $s1,$s1, 1        #incrementamos el contador que guarda sentido izq-right
+               addi $t0,$t0,-1
+               beq  $t0,$t3, salir
+               j siga
+               
+salir:         lw $s0, 4($sp) 
+               lw $s1, 8($sp) 
+               add $sp, $sp, 12 
+               jr $ra
+#_______________________________________________________________________________________________________________________               
+               
+searchWordV: #Procedimiento para buscar cadena verticalmente 
+               addi $sp, $sp, -4                 #prepara el puntero de pila para guardar temporalmente $ra (retorno de llamado)
+               sw   $ra,0($sp)                   #Se preserva dirección de retorno
+               li   $t0, 0                       #Inicializar contador de filas
+               li   $a1, 10                      #Controla salto con caracter de nueva linea si es 13 controlamos retorno de carro
+               la   $s0, archivo_entrada 
+               la   $s5, dir_fil                 #Se obtiene direccion donde se preserva contador de la fila actual
+               addi $s3, $a0,0                   #Se recibe la palabra de busqueda 
+               addi $s0, $s0,-1                  # Direccionamiento de las filas
+               li   $t5, 0                       #Contador de coincidencias
+               li   $a2, 32                      #Para controlar los espacios en el archivo, [se cambio $a2]
+                   
+sgt_linea_V:  addi $t0, $t0,1                   #Se incrementa el contador de columnas
+              li   $t2, 0                       # se inicializa Contador de columnas
+              la   $t6, long_cad                # Puntero de la palabra a buscar
+              addi $s0,$s0, 1                   #Se mueve la dirección para ir a la siguiente columna
+              sw   $t0,($s5)                    #Se salva el numero de la columna que se explora
+For_ext_V:    beq $t0, 100, out_search_V
+              lbu  $t1, 0($s0)                  #Se obtiene un byte que puede ser un caracter o un CR o un final de archivo 
+              li   $t2, 0                       #Contador de filas 
+              beq  $t1, 0,  out_search_V         #Se sale de los ciclos por haber terminado de leer toda la matriz 
+              beq  $t1, 13,  out_search_V
+              
+              add  $s2, $s1, $zero              #$s2 apunta al inicio de la fila 
+          
+          #___________________________________________________________________________________________________________
+             addi $s4, $s0, 0                  #Se inicializa puntero para busqueda dentro de la columna
+             lbu  $t7, ($t6)                   #Se obtiene la longitud de la palabra a buscar
+For_int_V:   addi $a2, $t2, 0                  #se pasa como argumento
+             beq  $t7, $t5 , Show_result_V       #Se muestra el resultado, por que la busqueda fue exitosa
+             beq  $t2, 50,   continue_V        #ha leido los 50 caracteres, va a buscar siguiente columna
+             lbu  $t3, ($s4)                   #Se lee un caracter_alfetico un espacio o un caracter de control (final de archivo)
+             beq  $t3,  $a2, no_aplica_V        #Se enconcontro un espacio, no_aplica
+             lbu  $t4, ($s3)                   #Se obtiene caracter de la palabra que se está buscando
+             bne  $t4, $t3, sin_coinci_V       #Se verifica si los caracteres son iguales
+             addi $t5, $t5, 1                  #Se actualiza El contador de coincidencias
+             addi $s3, $s3, 1                  #Se actualiza el puntero de la palabra a buscar
+no_aplica_V: addi $s4, $s4, 100                # Modificada, Se actualiza puntero para seguir explorando en la columna
+             addi $t2, $t2, 1                  #Se incrementa contador de elementos de la columna 
+             j For_int_V 
+           
+       
+sin_coinci_V:  addi $t2, $t2,1                   #Se actualiza contador de filas
+               addi $s4, $s4, 100                  #Como no hubo coincidencia, Se actualiza para seguir explorando en la fila  
+               addi $s3,$a0,0                    #Se reinicializa puntero a la palabra que se busca
+               li   $t5,0                        #Se reinicializa el contador de coincidencias 
+               j For_int_V                         #Se retorna al For para seguir explorando en la columna                 
+         #___________________________________________________________________________________________________________
+continue_V:   addi $s0,$s0, 1                # Modificada Se actualiza puntero para ir a la siguiente columna
+              addi $t0,$t0, 1
+              sw   $t0,($s5)                    #Se salva la fila de exploración actual
+              j For_ext_V                        #Se salta al for externo para seguir explorando
+            
+ #___________________________________________________________________________________________________________
+    
+              
+out_search_V:    lw   $ra,0($sp) 
+                 lw   $ra,0($sp)   
+                 addi $sp,$sp,4 
+                 jr   $ra                  
+#-----------------------------------------------------------------------------------------------------------------------
+Show_result_V:  li $v0, 4              
+                la $a0, cambio_fila    #Producir salto de linea en la consola
+                syscall
+                addi $sp, $sp, -4
+                sw   $ra, ($sp) 
+                la   $a1, long_cad
+                lw   $a1, ($a1)
+                la   $t4, flag 
+                li   $t6,1
+                lw   $t5, ($t4)             #Se obtiene el flag para determinar si debe hacer recalculo de la posición 
+            
+                bgt  $t5, $zero, siga_dir_V
+                la    $a0, Resultado_vert_down     #mensaje
+                li    $v0, 4
+                syscall
+                
+                addi  $a1, $a1,-1        #A la longitud de la palabra se le resta 1
+                sub   $a2, $a2,$a1 
+                j otro 
+                
+siga_dir_V:     bne  $t5, $t6, otro
+                la   $a0, Resultado_vert_up     #mensaje
+                li   $v0, 4
+                syscall
+ 
+otro:           addi  $a0, $a2,0           #Mostrar valor de la fila
+                li    $v0, 1
+                syscall
+                la $a0, Resultado_columna            
+                li $v0, 4
+                syscall
+                
+                addi $a0, $t0,0           #Se obtiene el valor de la columna para imprimirlo
+                li   $v0, 1
+                syscall
+                
+                li $v0, 4              
+                la $a0, cambio_fila    #Producir salto de linea en la consola
+                syscall
+                                       
+                j out_search_V
+               
+
+
+#_______________________________________________________________________________________________________________________
+searchWord: #Procedimiento para buscar cadena horizontalmente  
+            addi $sp, $sp, -4                 #prepara el puntero de pila para guardar temporalmente $ra (retorno de llamado)
+            sw   $ra,0($sp)                   #Se preserva dirección de retorno
+            li   $t0, 0                       #Inicializar contador de filas
+            li   $a1, 10                      #Controla salto con caracter de nueva linea si es 13 controlamos retorno de carro
+            la   $s0, archivo_entrada 
+            la   $s5, dir_fil                 #Se obtiene dire de fila
+            addi $s3, $a0,0                   #Se recibe la palabra de busqueda 
+            addi $s0, $s0,-1                  # Direccionamiento de las filas
+            li   $t5, 0                       #Contador de coincidencias
+            li   $a3, 32                      #Para controlar los espacios en el archivo
+                   
+sgt_linea:  addi $t0, $t0,1                   #Se incrementa el contador de filas
+            li   $t2, 1                       #Contador de columnas a cero
+            la   $t6, long_cad                # Puntero de la palabra a buscar
+            addi $s0,$s0, 1                   #Se mueve la dirección para ir al caracter siguiente
+            sw   $t0,($s5)                    #Se salva la fila de exploración actual
+For_ext:    lbu  $t1, 0($s0)                  #Se obtiene un byte que puede ser un caracter o un CR o un final de archivo 
+            li   $t2,0                        #Contador de columnas 
+            beq  $t1, $a1, sgt_linea         #Verificar si el caracter es un CR, y de ser cierto hay cambio de linea
+            beqz $t1, out_search              #Se sale de los ciclos por haber terminado de leer toda la matriz 
+            add  $s2, $s1, $zero              #$s2 apunta al inicio de la fila 
+          
+          #___________________________________________________________________________________________________________
+           addi $s4, $s0, 0                   #Se inicializa puntero para busqueda dentro de la fila
+           lbu  $t7, ($t6)                    #Se obtiene la longitud de la palabra a buscar
+           
+For_int:   beq  $t7, $t5 , Show_result        #Se muestra el resultado, por que la busqueda fue exitosa
+           lbu  $t3, ($s4)                    #Se lee un caracter_alfetico un espacio o un caracter de control
+           beq  $t3, $a3, no_aplica           #Se enconcontro un espacio, estaba en no_aplica
+           beq  $t3, $a1, continue            #Se llego al final de la fila actual
+           lbu  $t4, ($s3)                    #Se obtiene caracter de la palabra que se está buscando
+           bne  $t4, $t3, sin_coinci          #Se verifica si los caracteres son iguales
+           addi $t5, $t5, 1                   #Se actualiza El contador de coincidencias
+           addi $s3, $s3, 1                   #Se actualiza el puntero de la palabra a buscar
+no_aplica: addi $s4, $s4, 1                   #Se actualiza puntero para seguir explorando en la fila
+           addi $t2, $t2,1                    #Se incrementa contador de columnas 
+           j For_int 
+ 
+           
+sin_coinci:addi $t2, $t2,1                   #Se actualiza contador de columnas 
+           addi $s4, $s4, 1                  #Como no hubo coincidencia, Se actualiza para seguir explorando en la fila  
+           addi $s3,$a0,0                   #Se reinicializa puntero a la palabra que se busca
+           li   $t5,0                        #Se reinicializa el contador de coincidencias 
+           j For_int                        #Se retorna al For para seguir explorando en la fila                 
+         #___________________________________________________________________________________________________________
+continue:   addi $s0,$s0, 100                #Se actualiza puntero para ir a la siguiente fila
+            addi $t0,$t0, 1
+            la   $s5, dir_fil                    #Se obtiene direccion donde se preserva contador de la fila actual
+            sw   $t0,($s5)                    #Se salva la fila de exploración actual
+            j For_ext                        #Se salta al for externo para seguir explorando
+            
+        #___________________________________________________________________________________________________________
+    
+              
+out_search:    lw   $ra,0($sp) 
+               lw   $ra,0($sp)   
+               addi $sp,$sp,4 
+               jr   $ra    
+
+#-----------------------------------------------------------------------------------------------------------------------#                               
+printSopa: #Se inprime en la dirección izquierda derecha  
+      
+               li    $t0, 0      # Inicializar contador de filas
+               li    $a1, 13
+               la    $s0, archivo_entrada 
+               addi  $s0, $s0,-1
+                   
+sgt_linea1:    addi $t0, $t0,1               #Se incrementa el contador de filas
+               li   $t2, 0 
+For_one1:      addi $s0,$s0, 1               #Se mueve la dirección para ir al caracter siguiente
+For_Two1:      lbu  $t1, 0($s0)              #Se obtiene un byte que puede ser un caracter o un CR o un final de archivo 
+               addi $t2, $t2,1               #Contador de columnas 
+               beq  $t1, $a1, sgt_linea1     #Verificar si el caracter es un CR, y de ser cierto hay cambio de linea
+               beqz $t1, out_search1         #Se sale de los ciclos por haber terminado de leer toda la matriz   
+                        
+#____________________________________________________________________________________________________________________#
+            
+               addi $a0, $t1,0
+               addi $s0,$s0, 1             #actualiza direccion del siguiente caracter
+               li   $v0, 11 
+               syscall 
+               j For_Two1                    #Salta a buscar elemento siguiente columna
+            
+out_search1:   jr   $ra                    
+            
+#_______________________________________________________________________________________________________________________
+            
+    
+#Función para leer palabra              
+pedirPalabra:
+                #Preservamos dirección de retorno apilando el $ra
+                 addi $sp, $sp, -4
+                 sw $ra,0($sp)
+                 li $v0, 54                    #Función syscall para sacar pantalla de entrada palabra a buscar 
+                 
+                 #El ciclo se repite hasta encontrar una palabra valida 
+give_me_word:    li $a2, 25                    #Longitud máxima de la palabra 
+                 la $a0, msg_busco_word
+                 la $a1, palabra_buscar
+                 syscall
+                 bnez $a1 give_me_word
+                 jal long                        #llamado a la función calcular longitud palabra de entrada
+            
+                 #Restauramos la pila
+                 lw   $ra,0($sp)   
+                 addi $sp,$sp,4 
+                 jr   $ra
+
+#---------------------------------------------------------------------------------------------#       
+##Calculo longitud de la cadena
+long:       addi   $sp, $sp, -4
+            sw     $ra,0($sp) 
+                        
+            la $t0, palabra_buscar       #Probar esta linea para eliminar la que sigue
+            li   $t1, -1                 #Contador de caracteres
+cuentachar: lbu  $t2, ($t0)              # t2 tiene el byte del caracter
+            beq  $t2, $zero, Salir  
+            addi $t1, $t1,1              #Cuenta palabras
+            addi $t0, $t0, 1             #Siguiente caracter
+            j  cuentachar  
+            
+Salir:      la $t0, long_cad  
+            sw $t1,0($t0)               #Se preserva la longitud de la cadena
+            jal converMayus 
+            lw $ra,0($sp)   
+            addi $sp,$sp,4 
+            jr $ra
+                                    
+          
+#---------------------------------------------------------------------------------------------#          
+#buscaPalabraV:
+# add $zero, $zero, $zero
+
+cerrar_archivo:  
+         la $s1, backup_descriptor 
+         lw $s0, ($s1)
+         li     $v0, 16	          # System call for closed from file
+         move   $a0, $s0	          # File descriptor	
+         syscall
+         jr $ra 
+
+#---------------------------------------------------------------------------------------------#                                                                                                                                                    
+# Función que convierte a mayusculas los caracteres de entrada     
+converMayus:
+            #Preservamos el retorno 
+            addi $sp, $sp, -4
+            sw   $ra, 0($sp)
+            
+            la   $t0, palabra_buscar
+            li   $t1, 97
+            li   $t2, 122
+sig_byte:   lbu  $t3, ($t0)
+            beq  $t3, $zero,salgas
+            bltu $t3, $t1, otros
+            bgtu $t3, $t2, otros
+            addi $t3, $t3, -32
+            sb   $t3, ($t0)
+otros:      addi $t0, $t0,1
+            j    sig_byte
+            
+salgas:    #Restauramos la pila
+          addi   $sp, $sp, 4
+          lw     $ra,0($sp)
+          jr     $ra
+#---------------------------------------------------------------------------------------------#                         
+          
+clearWord:
+          la    $t0, palabra_buscar
+          add   $t1,$t0 , $zero
+otro2:    lbu   $t2, ($t1)
+          beq   $t2, $zero, End2
+          sb    $zero, ($t1)
+          addi  $t1, $t1, 1
+          j     otro2
+End2:     jr    $ra
+
+#____________________________________________________________________________________________________________________
+Show_result:       la   $a1, long_cad               #Se obtiene dirección de la longitud de la palabra que se busca
+                   la   $t4, flag                   #El obtiene dirección de la variable flag
+                   lw   $t4, ($t4)                  #Se obtiene el valor del flag
+                   beqz $t4, calcule_dir            #El flag == 0 , se salta para ajustar la posición de la columna
+                   la   $a2, Resultado_fila_izq     
+                   la   $a3, Resultado_columna
+                   addi $t3,$t2,0
+                   j sin_calcular_dir               #Se produce un salto por que no se requiere ajuste de la posición de la columna
+              
+calcule_dir:       la   $a2, Resultado_fila_der     #Se obtiene mensaje
+                   la   $a3, Resultado_columna      #Se obtiene mensaje
+                   lw   $t1, ($a1)                  #Se obtiene el valor de longitud de la cadena
+                   sub  $t3, $t2,$t1                # Esta linea y siguientes dos calcula posicion real de la palabra ps = contadorColumnas -2*lon_cadena+1
+                   sub  $t3, $t3, $t1 
+                   addi $t3, $t3, 2
+              
+           
+sin_calcular_dir:  addi $a0, $a2,0                  #Se genera un mensaje            
+                   li   $v0, 4                      
+                   syscall
+              
+                   la  $t0, dir_fil     #Se obtiene dirección donde esta el valor de las filas
+                   lw  $a0, ($t0)       # se obtiene el valor de la fila  
+                   li  $v0, 1
+                   syscall
+              
+                   li $v0, 4           #Se genera un mensaje   
+                   addi $a0, $a3, 0
+                   syscall
+              
+                   li $v0, 1           #Se muestra el valor de la columna  
+                   la $t0, dir_col
+                   addi $a0, $t3, 0
+                   syscall 
+              
+                   li $v0, 4              
+                   la $a0, cambio_fila    #Producir salto de linea en la consola
+                   syscall
+                   j out_search 
+              
+              
+ 
+ #---------------------------------------------------------------------------------------------#         
+#Segmento de código para finalizar programa      
+Fin:    addi $sp, $sp, 8                         #Se preservan parametros para recuperarlos y hacer cierre
+        lw   $a1, 0($sp)
+        lw   $a2, 4($sp)
+        
+        #Final del programa  
+        jal cerrar_archivo 
+        la $a0, Finish
+        li $v0, 4
+        syscall
+        li $v0, 10
+        syscall 
+#---------------------------------------------------------------------------------------------#                     
+                                              

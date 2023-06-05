@@ -1,0 +1,32 @@
+.text
+# Se convierte la letra a mayúscula
+convertirPalabra:
+  addi $sp, $sp, -12          # Reservar espacio en la pila
+  sw $ra, 0($sp)              # Guardar el valor de $ra en la pila
+  sw $s0, 4($sp)              # Guardar el valor de $s0 en la pila
+  sw $s1, 8($sp)              # Guardar el valor de $s1 en la pila
+
+  move $s0, $zero             # Inicializar $s0 con 0 (índice i)
+  la $s1, palabra             # Cargar la dirección de memoria de la cadena palabra en $s1
+
+convertirPalabra_loop:
+  lb $t0, ($s1)               # Cargar el byte de la cadena palabra en $t0
+  beqz $t0, convertirPalabra_end # Salir del loop si se llega al final de la cadena
+
+  blt $t0, 97, convertirPalabra_next # Saltar si el byte es menor a 'a'
+  bgt $t0, 122, convertirPalabra_next # Saltar si el byte es mayor a 'z'
+
+  subi $t0, $t0, 32           # Convertir el byte a mayúscula sumando 32
+  sb $t0, ($s1)               # Guardar el byte convertido en la misma posición de memoria
+
+convertirPalabra_next:
+  addi $s0, $s0, 1           # Incrementar el índice i
+  addi $s1, $s1, 1           # Incrementar la dirección de memoria de la cadena palabra
+  j convertirPalabra_loop    # Volver al inicio del loop
+
+convertirPalabra_end:
+  lw $ra, 0($sp)              # Cargar el valor de $ra desde la pila
+  lw $s0, 4($sp)              # Cargar el valor de $s0 desde la pila
+  lw $s1, 8($sp)              # Cargar el valor de $s1 desde la pila
+  addi $sp, $sp, 12           # Liberar el espacio de la pila
+  jr $

@@ -1,0 +1,56 @@
+#_______________________________________________________________________________________________________________________
+.data         
+                 .align 2 
+                 
+Fin:             .byte  0x00
+
+                 .align 2
+resultado        .space 1000 
+       
+                 .align 2
+cadena:          .asciiz "hwqgbdsnjcxxhuqwqyud-.d{eijwqwf27dsije87ebjcsjcjjkgfAFGHHNR"
+           
+
+#_______________________________________________________________________________________________________________________
+.text          
+principal:         la   $s0, cadena
+                   la   $s5, resultado 
+                
+                   jal   operacion  
+                   
+                   j end
+
+termina_principal:
+#_______________________________________________________________________________________________________________________
+
+operacion:     
+               li   $a1, 97             #minusculas 
+               li   $a2, 122             
+               
+              
+               addi $t0, $a0,0          #Recibimos parametro Fin en $a0
+               lb   $t0,($t0)
+               
+            
+loop:          lb   $t2, ($s0)             #Leemos el valor apuntado por $s0
+               beq  $t2, $t0, salir        #Si es zero se termina de explorar el arreglo
+               
+               #pasa a  mayúsculas 
+               bgt  $t2,$a2,  NO          #es mayor que
+               blt  $t2, $a1, NO           #es menor que  
+               addi $t2, $t2, -32         #pasa a mayuscula
+               
+NO:          
+               sb   $t2, ($s5)            #Se guarda en memoria caracter convertido a mayuscula 
+               addi $s5, $s5, 1
+               
+               #li   $v0, 11               #imprimimos caracter
+               #addi $a0, $t2, 0
+               #syscall
+           
+               addi $s0, $s0, 1 
+               j loop           
+ salir:        jr $ra                   
+#___________________________________________________________________________________________________________________________     
+end:          li $v0, 10
+              syscall      

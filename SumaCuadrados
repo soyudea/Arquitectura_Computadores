@@ -1,0 +1,52 @@
+.data
+msg01: .asciiz "Cuál es la cantidad de números a leer: "
+msg02: .asciiz "Digite un número"
+msg03: .asciiz "El resultado es: "
+
+.text  
+        .global main
+
+main:   #Mustra mensaje
+        la $a0, msg01
+        li $v0, 4
+        syscall 
+        
+        #Lee cantidad de numeros a leer
+        li $v0, 5
+        syscall
+        
+        beqz $v0, Fin 
+        
+        addi $t0, $v0,0
+        li $t1, 0  
+        
+        #Mensaje leer número
+loop:   la $a0, msg02
+        li $v0, 4
+        syscall
+        
+        #leer número de entrada
+        li $v0, 5       #En #v0 se guarda lo que digita el usuario
+        syscall
+        
+        mul $v0, $v0,$v0  #eleva al cuadrado el número que entró
+        add $t2, $t2, $v0
+        add $t1, $t1, 1    #Incrementa el contador de números que han entrado
+        beq $t1,$t0, Fin
+        j loop
+        
+ Fin:
+    #Imprime el mensaje 3
+    la $a0, msg03
+    li $v0, 4
+    syscall
+    
+    #Muestra el resultado
+    addi $a0, $t2, 0
+    li $v0, 1
+    
+    #Termina
+    syscall
+    li $v0, 10
+    syscall                                                                                                                                
+        

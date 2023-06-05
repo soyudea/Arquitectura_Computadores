@@ -1,0 +1,34 @@
+buscarPalabraHorizontalIzquierdaDerecha:
+    move $t0, $a0       # Apuntamos al primer elemento de la matriz
+    move $t1, $t0
+    move $t2, $a1       # Cargamos la palabra a buscar en $t2
+    li $t3, 0           # Inicializamos el contador de caracteres coincidentes en 0
+    li $t4, -1          # Inicializamos la variable para almacenar la fila en -1 (no encontrada)
+    li $t5, -1          # Inicializamos la variable para almacenar la columna en -1 (no encontrada)
+    li $t6, 50          # Cargamos el tamaño de la matriz en $t6 (50 filas)
+    li $t7, 50          # Cargamos el tamaño de la matriz en $t7 (50 columnas)
+
+fila:
+    addi $t4, $t4, 1    # Incrementar el contador de filas
+    move $t8, $t4       # Copiar el contador de filas a $t8
+    mult $t8, $t7       # Multiplicar el contador de filas por el número de columnas
+    mflo $t9            # Obtener el resultado en $t9
+    add $t9, $t9, $t7   # Sumar el contador de columnas
+    add $t1, $t0, $t9   # Sumar el resultado a $t0 para apuntar al comienzo de la fila actual
+
+siguiente:
+    lbu $t10, ($t1)     # Cargar byte del caracter actual en la matriz
+    lbu $t11, ($t2)     # Cargar byte del caracter actual en la palabra a buscar
+    beqz $t10, Retorne  # Si es cero, significa que se ha alcanzado el final de la fila, por lo que retornamos
+    beqz $t11, encontrado # Si es cero, significa que se ha alcanzado el final de la palabra a buscar, por lo que hemos encontrado la palabra
+
+    bne $t10, $t11, siguiente  # Si los caracteres no coinciden, continuamos buscando en el siguiente caracter de la fila
+
+    addi $t1, $t1, 1   # Apuntar al siguiente caracter de la fila (hacia la derecha)
+    addi $t2, $t2, 1   # Apuntar al siguiente caracter de la palabra a buscar
+    addi $t3, $t3, 1   # Incrementar el contador de caracteres coincidentes
+    j siguiente
+
+encontrado:
+    beqz $t4, fila_encontrada # Si la variable de fila es cero, significa que se encontró la palabra en la primera fila
+    addi $t4, $t4, 1    # Incrementar el contador de filas para mostrar el valor correcto en el mensaje

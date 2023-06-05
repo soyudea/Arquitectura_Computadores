@@ -1,0 +1,48 @@
+.data 
+vect:        .word   5,3,0,-1,-7,0,-33,4
+
+.text                .global main
+main:          
+              la $a0, vect
+              jal burbuja
+              
+              j Exit
+#_______________________________________________________________________________________________________________________
+
+burbuja:     # addi $sp, $sp, 
+              addi $s5, $zero, 0                 #  i = 0 contador
+              addi $s1, $zero, 1                 #  j =1  contador
+              li   $a1,  7                       # Se usa para tener un control sobre el contador de columnas 
+              li   $s6,  8                       #Se setea con la longitud del vector a ordenar 
+              
+For_ext:      slt  $t2, $s5, $s6                 #Verificamos si el contador i ==8
+              beq  $t2, $zero, Fin_burbuja       #Si ordeno elementos ir a proceso de retorno       
+              addi $s2, $a0, 4                   # $s2 apunta a vect[i+1], se adiciona 4 a la dirección actual, palabra
+       
+#______________________________________________For interno_______________________________________________________________
+In_for:       lw   $s3,0($a0)                    #Obtiene elemento vect[i]
+              slt  $t0, $s1, $a1                 # j < 7, control de el elemnto j
+              beq  $t0,$zero, Ext                # si zero salta por que llego al final del vector
+              lw   $s4,0($s2)                    #obtenemos vect[j]
+              slt  $t0, $s3,$s4                  # Vect[i] < vect[j]    
+              bgtz $t0 no_change                 # si t0 ==0 encontro un menor, salta si mayor que cero
+              sw   $s3,0($s2)                    # Se actualizan valores del vector
+              sw   $s4, 0($a0) 
+no_change:    addi $s1, $s1, 1                   # j = j+1 
+              addi $s2,$s2, 4                    # Se actualiza puntero en ciclo interno
+              j    In_for
+              #__________________________________________________________________________________________________________
+              #El bloque inicializa  variables para hacer el recorrido externo
+Ext:          addi $a0, $a0, 4
+              addi $s5,$s5,1        #Se inicializa contador del for interno
+              sub  $a1, $a1,1       #Se inicializa direccion del apuntador para el for interno 
+              li   $s1, 0 
+              j For_ext  
+                  
+Fin_burbuja:  jr $ra                 
+#_________________________________________________________________________________________________________________
+        
+Exit:         li $v0, 10
+              syscall              
+                  
+     
